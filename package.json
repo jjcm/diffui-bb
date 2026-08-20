@@ -1,0 +1,54 @@
+{
+  "name": "bb-plugin-diffui-bb",
+  "version": "0.1.0",
+  "description": "Design in Diffui, build in bb: canvases from the sidebar or agent tools, @diffui mentions, and Build with bb dispatches into your current project.",
+  "private": true,
+  "license": "MIT",
+  "homepage": "https://github.com/jjcm/diffui-bb#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jjcm/diffui-bb.git"
+  },
+  "type": "module",
+  "engines": {
+    "bb": ">=0.38",
+    "bbPluginSdk": ">=0.4.8"
+  },
+  "bb": {
+    "name": "Diffui",
+    "description": "Create Diffui canvases from bb, pull designs and brands into threads, and let Build with bb send canvas selections into a thread here.",
+    "branding": {
+      "icon": "Palette"
+    },
+    "server": "./server.ts",
+    "app": "./app.tsx"
+  },
+  "keywords": [
+    "bb-plugin",
+    "diffui",
+    "design"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "verify-build": "node scripts/verify-build.mjs"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@get-bb/plugin-sdk": "0.4.8",
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "better-sqlite3": "^12.0.0",
+    "cron-parser": "^5.10.0",
+    "esbuild": "^0.25.0",
+    "hono": "^4.11.9",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.1"
+  }
+}

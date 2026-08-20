@@ -1,0 +1,4 @@
+dist/
+node_modules/
+dist-verify/
+.e2e-harness.mjs
