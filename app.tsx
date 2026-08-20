@@ -6,9 +6,9 @@
 //   is a browse grid of the Diffui account — fixed-aspect cards sized from the
 //   generated cover, like Diffui's own browse. Opening one adopts it into bb and
 //   shows THE DIFFUI CANVAS at subPath "<projectId>": the product
-//   `<diffui-canvas-workspace>` element, imported at runtime from the
-//   configured Diffui origin and repainted with bb's theme tokens.
-//   See canvas/diffui-canvas-element.ts.
+//   `<diffui-canvas-workspace>` element, bundled with the plugin from the copy
+//   of Diffui's frontend in canvas/diffui/ and repainted with bb's theme
+//   tokens. See canvas/diffui-canvas-element.ts.
 // - The same canvas beside any thread via the "Diffui canvas" panel action.
 // - bb's files as THREADS: the sidebar thread list is wrapped so the canvases
 //   created in bb (or explicitly opened into bb) appear as palette-icon thread
@@ -196,7 +196,7 @@ function DiffuiCanvasSurface({ projectId }: { projectId: string }) {
         if (cancelled) return;
         // Diffui's colour tokens, expressed in bb's — injected before the
         // element mounts so the canvas never paints in Diffui's palette first.
-        ensureBbCanvasTheme(session.baseUrl);
+        ensureBbCanvasTheme();
         const element = await mountDiffuiCanvas(host, projectId, session);
         if (cancelled) {
           element.remove();

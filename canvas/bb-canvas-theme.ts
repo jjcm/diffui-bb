@@ -1,12 +1,11 @@
-// The one and only difference between Diffui's canvas and the canvas bb shows:
-// its colours.
+// How the canvas bb shows differs from Diffui's: its colours.
 //
-// `<diffui-canvas-workspace>` is imported from Diffui unchanged (see
-// diffui-canvas-element.ts). Every colour it paints — in shadow CSS and in the
-// 2D context — comes from a custom property, so restyling it onto bb's theme is
-// a matter of redefining those properties on the element that hosts it. Nothing
-// below changes layout, geometry, behaviour, or the tool rail's icons; it is a
-// palette and nothing else.
+// `<diffui-canvas-workspace>` is Diffui's element, mirrored into this
+// repository and mounted as-is (see diffui-canvas-element.ts). Every colour it
+// paints — in shadow CSS and in the 2D context — comes from a custom property,
+// so restyling it onto bb's theme is a matter of redefining those properties on
+// the element that hosts it. Nothing below changes layout, geometry,
+// behaviour, or the tool rail's icons; it is a palette and nothing else.
 //
 // Two families are defined here:
 //
@@ -105,12 +104,8 @@ function drawColorDeclarations(): string {
 /**
  * The token layer. Scoped to `.dfbb-canvas-host` so it can only ever repaint
  * the mounted canvas — it never leaks into bb's own chrome.
- *
- * `assetBase` absolutizes the cursor sprites the canvas ships: those three
- * tokens are `url()`s, and relative ones would resolve against bb's page.
  */
-export function bbCanvasThemeCss(assetBase: string): string {
-  const asset = (path: string): string => `${assetBase.replace(/\/+$/, "")}${path}`;
+export function bbCanvasThemeCss(): string {
   return `
 .dfbb-canvas-host {
   position: relative;
@@ -236,25 +231,17 @@ ${drawColorDeclarations()}
   flex: 1;
   min-height: 0;
   min-width: 0;
-
-  /* The cursor sprites ship with Diffui, so they resolve at its origin. These
-     three are the only canvas tokens the element declares on itself (in its
-     shadow \`:host\` block), so an inherited value would lose to it — they have
-     to be set on the element, where this rule outranks \`:host\`. */
-  --canvas-cursor-default: image-set(url("${asset("/app/assets/canvas-cursor-pointer.png")}") 2x) 9 9, default;
-  --canvas-cursor-duplicate: image-set(url("${asset("/app/assets/canvas-cursor-duplicate.png")}") 2x) 9 9, ew-resize;
-  --canvas-cursor-comment: image-set(url("${asset("/app/assets/comment-cursor.png")}") 2x) 2 2, copy;
 }
 `;
 }
 
 const STYLE_ID = "diffui-bb-canvas-theme";
 
-/** Injects (or re-points) the token layer. Idempotent per document. */
-export function ensureBbCanvasTheme(assetBase: string): void {
+/** Injects the token layer. Idempotent per document. */
+export function ensureBbCanvasTheme(): void {
   if (typeof document === "undefined") return;
   const existing = document.getElementById(STYLE_ID);
-  const css = bbCanvasThemeCss(assetBase);
+  const css = bbCanvasThemeCss();
   if (existing !== null) {
     if (existing.textContent !== css) existing.textContent = css;
     return;

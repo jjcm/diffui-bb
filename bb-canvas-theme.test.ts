@@ -1,19 +1,21 @@
 // The contract behind "the canvas is Diffui's, with bb's colours".
 //
-// bb mounts Diffui's own `<diffui-canvas-workspace>` — imported at runtime from
-// the configured Diffui origin, never vendored into this repository — so the
-// only thing the plugin may change about it is colour.
+// bb mounts Diffui's own `<diffui-canvas-workspace>` — the copy of it in
+// canvas/diffui/, bundled into the plugin — so the only thing the plugin may
+// change about it is colour.
 //
 // Two layers of tests:
 //
-// - Standalone (always run): the token layer is structurally sound — every
-//   drawn colour is expressed in bb's host tokens, everything is scoped to the
-//   canvas mount, no Diffui hue is hardcoded, the cursor sprites resolve at the
-//   Diffui origin, and the module loader never reaches into a Diffui checkout.
-// - Drift checks (run when DIFFUI_REPO points at a jjcm/diffui checkout): read
-//   the ACTUAL Diffui frontend and assert the layer covers every colour token
-//   that canvas asks for — in shadow CSS and in the 2D context — so a new
-//   token upstream cannot silently fall back to a Diffui hue inside bb.
+// - The token layer is structurally sound: every drawn colour is expressed in
+//   bb's host tokens, everything is scoped to the canvas mount, no Diffui hue
+//   is hardcoded, and the cursor sprites come from the bundle rather than a
+//   Diffui origin.
+// - Drift: the layer covers every colour token the ACTUAL canvas asks for — in
+//   shadow CSS and in the 2D context — so a token that arrives with the next
+//   `npm run vendor:canvas` cannot silently fall back to a Diffui hue inside
+//   bb. These read the vendored canvas, so they always run; point DIFFUI_REPO
+//   at a jjcm/diffui checkout to run them against that instead, ahead of a
+//   re-vendor.
 //   Example: DIFFUI_REPO=~/src/diffui npm test
 
 import { existsSync, readFileSync } from "node:fs";
@@ -21,13 +23,14 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { describe, expect, test } from "vitest";
 import { BB_CANVAS_DRAW_COLORS, bbCanvasThemeCss } from "./canvas/bb-canvas-theme.js";
-import { CANVAS_MODULE_PATH, canvasModuleUrl } from "./canvas/diffui-canvas-element.js";
 
 const pluginRoot = dirname(fileURLToPath(import.meta.url));
+const vendoredComponents = join(pluginRoot, "canvas/diffui/app/components");
 
 const diffuiRepo = process.env.DIFFUI_REPO === undefined ? "" : resolve(process.env.DIFFUI_REPO);
-const frontendComponents = diffuiRepo === "" ? "" : join(diffuiRepo, "frontend/app/components");
-const hasDiffuiCheckout = frontendComponents !== "" && existsSync(frontendComponents);
+const checkoutComponents = diffuiRepo === "" ? "" : join(diffuiRepo, "frontend/app/components");
+const canvasComponents =
+  checkoutComponents !== "" && existsSync(checkoutComponents) ? checkoutComponents : vendoredComponents;
 
 /** Every source file whose shadow CSS renders inside the mounted canvas. */
 const CANVAS_SOURCES = [
@@ -39,12 +42,12 @@ const CANVAS_SOURCES = [
   "diffui-button.js",
 ];
 
-const THEME_CSS = bbCanvasThemeCss("https://diffui.test");
+const THEME_CSS = bbCanvasThemeCss();
 
 function canvasTokensReferencedByDiffui(): string[] {
   const tokens = new Set<string>();
   for (const file of CANVAS_SOURCES) {
-    const source = readFileSync(join(frontendComponents, file), "utf8");
+    const source = readFileSync(join(canvasComponents, file), "utf8");
     for (const match of source.matchAll(/var\((--canvas-[a-z0-9-]+)/g)) {
       tokens.add(match[1]!);
     }
@@ -53,24 +56,24 @@ function canvasTokensReferencedByDiffui(): string[] {
 }
 
 describe("canvas module loading", () => {
-  test("imports the product canvas from the Diffui origin, not from a checkout", () => {
-    // The plugin lives in its own repository now. The one way it may obtain
-    // the canvas is a runtime import from the configured Diffui origin — a
-    // relative path into a jjcm/diffui working tree must never come back, and
-    // no vendored copy of the workspace module may exist here.
+  test("mounts the copy of the canvas in this repository, never a remote module", () => {
+    // The plugin is self-contained: the canvas is bundled from canvas/diffui/,
+    // and no build of this loader may reach a Diffui origin for frontend code.
     const loader = readFileSync(join(pluginRoot, "canvas/diffui-canvas-element.ts"), "utf8");
-    expect(loader).not.toContain("../frontend/");
-    expect(loader).toContain('CANVAS_MODULE_PATH = "/app/components/diffui-canvas-workspace.js"');
-    expect(existsSync(join(pluginRoot, "canvas/diffui-canvas-workspace.js"))).toBe(false);
+    expect(loader).toContain('await import("./diffui-bb/vendored-canvas.js")');
+    expect(loader).not.toMatch(/import\([^)]*(baseUrl|API_BASE|https?:)/i);
+    expect(loader).not.toContain("/app/components/diffui-canvas-workspace.js");
+    expect(existsSync(join(vendoredComponents, "diffui-canvas-workspace.js"))).toBe(true);
   });
 
-  test("resolves the module URL on the session's Diffui origin", () => {
-    expect(canvasModuleUrl("https://diffui.test")).toBe(
-      `https://diffui.test${CANVAS_MODULE_PATH}`,
-    );
-    expect(canvasModuleUrl("http://localhost:3040///")).toBe(
-      `http://localhost:3040${CANVAS_MODULE_PATH}`,
-    );
+  test("keeps the embed globals it sets to the API contract", () => {
+    const loader = readFileSync(join(pluginRoot, "canvas/diffui-canvas-element.ts"), "utf8");
+    for (const global of ["DIFFUI_EMBED", "DIFFUI_API_BASE", "DIFFUI_API_KEY"]) {
+      expect(loader).toContain(`view.${global} =`);
+    }
+    // Build with bb is unconditional in this copy (see the patch set), so the
+    // gating global is gone rather than set-and-ignored.
+    expect(loader).not.toContain("view.DIFFUI_BB_HOST");
   });
 });
 
@@ -108,9 +111,11 @@ describe("bb canvas token layer", () => {
     }
   });
 
-  test("points the canvas cursor sprites at the Diffui origin they ship from", () => {
-    expect(THEME_CSS).toContain('url("https://diffui.test/app/assets/canvas-cursor-pointer.png")');
-    expect(THEME_CSS).toContain('url("https://diffui.test/app/assets/comment-cursor.png")');
+  test("restyles nothing but colour: no sprite, geometry or asset URL of its own", () => {
+    // The cursor sprites belong to the canvas and are bundled with it
+    // (canvas-vendor.test.ts); this layer has no business naming them.
+    expect(THEME_CSS).not.toContain("url(");
+    expect(THEME_CSS).not.toContain("/app/assets/");
   });
 
   test("leaves the tool rail's own geometry and icons alone", () => {
@@ -123,18 +128,22 @@ describe("bb canvas token layer", () => {
   });
 });
 
-describe.skipIf(!hasDiffuiCheckout)("drift against the Diffui frontend (DIFFUI_REPO)", () => {
-  test("defines every --canvas-* token Diffui's canvas reads", () => {
-    const referenced = canvasTokensReferencedByDiffui();
+describe("drift against Diffui's canvas", () => {
+  test("defines every --canvas-* colour token the canvas reads", () => {
+    // Everything except --canvas-cursor-*: those are the canvas's own sprites,
+    // which it declares on itself from the bundle (canvas-vendor.test.ts).
+    const referenced = canvasTokensReferencedByDiffui().filter(
+      (token) => !token.startsWith("--canvas-cursor-"),
+    );
     // Guard against the scan silently finding nothing (a moved file, a renamed
     // token prefix) and this passing vacuously.
     expect(referenced.length).toBeGreaterThan(40);
     expect(referenced.filter((token) => !THEME_CSS.includes(`${token}:`))).toEqual([]);
   });
 
-  test("covers every colour Diffui's 2D drawing code asks for", async () => {
+  test("covers every colour the canvas's 2D drawing code asks for", async () => {
     const palette = (await import(
-      pathToFileURL(join(frontendComponents, "canvas-draw-palette.js")).href
+      pathToFileURL(join(canvasComponents, "canvas-draw-palette.js")).href
     )) as { CANVAS_DRAW_COLOR_KEYS: readonly string[] };
     expect(Object.keys(BB_CANVAS_DRAW_COLORS).sort()).toEqual(
       [...palette.CANVAS_DRAW_COLOR_KEYS].sort(),
