@@ -31,7 +31,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
-    "verify-build": "node scripts/verify-build.mjs"
+    "verify-build": "node scripts/verify-build.mjs",
+    "vendor:canvas": "node scripts/vendor-diffui-canvas.mjs",
+    "vendor:canvas:check": "node scripts/vendor-diffui-canvas.mjs --check"
   },
   "dependencies": {
     "zod": "^4.3.6"

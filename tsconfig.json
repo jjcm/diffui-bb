@@ -17,6 +17,7 @@
     "server.test.ts",
     "bridge.test.ts",
     "bb-canvas-theme.test.ts",
+    "canvas-vendor.test.ts",
     "canvas-doc.test.ts",
     "thumb-layout.test.ts",
     "vitest.config.ts"

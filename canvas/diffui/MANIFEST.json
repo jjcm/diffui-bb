@@ -1,0 +1,218 @@
+{
+  "note": "Diffui's canvas, vendored. Regenerate with scripts/vendor-diffui-canvas.mjs; every difference from upstream is in scripts/diffui-canvas-bb-patches.mjs.",
+  "source": {
+    "kind": "origin",
+    "origin": "https://diffui.ai",
+    "fetchedAt": "2026-08-20T18:09:58.578Z"
+  },
+  "entry": "/app/components/diffui-canvas-workspace.js",
+  "modules": {
+    "app/collab/canvas-collab-provider.js": {
+      "upstreamSha256": "74dab9f78926aceb8c52dbc39dfb2a5dbbb1da7432fb04209b6a6dad71281dbc",
+      "sha256": "74dab9f78926aceb8c52dbc39dfb2a5dbbb1da7432fb04209b6a6dad71281dbc"
+    },
+    "app/collab/canvas-crdt.js": {
+      "upstreamSha256": "1f6e530bf25bbfda81bf693c5a89a4e2772ad16417e5f8f314a00addfc39b7a4",
+      "sha256": "1f6e530bf25bbfda81bf693c5a89a4e2772ad16417e5f8f314a00addfc39b7a4"
+    },
+    "app/collab/collab-click-effect.js": {
+      "upstreamSha256": "352425d7ebbf1514d50caf72cdc5ca686e4069989ebebe714d6d4364034fe59b",
+      "sha256": "352425d7ebbf1514d50caf72cdc5ca686e4069989ebebe714d6d4364034fe59b"
+    },
+    "app/collab/collab-colors.js": {
+      "upstreamSha256": "38a98c9b2d9983524df208977feabdd396a035e4fba81c2a445809e8c88a2d60",
+      "sha256": "38a98c9b2d9983524df208977feabdd396a035e4fba81c2a445809e8c88a2d60"
+    },
+    "app/collab/collab-cursor.js": {
+      "upstreamSha256": "83743b39ad7fc75e3a48fda3f167c594e9a81812c2d2e8ce16fd9f8d52725e5e",
+      "sha256": "2672bf2008ffc86a4ee34cf411a45b74803bafd7d7d7fcc45bef189c92cd8cc0",
+      "patches": [
+        "self-containment: collab cursor sprites are bundled, and upstream never routed them through the embed bridge",
+        "self-containment: same, at the two return sites"
+      ]
+    },
+    "app/collab/collab-protocol.js": {
+      "upstreamSha256": "bd0aeddc1b80d77f33a8cdae083fb438b26eeec6b2943d9d3bc6c114c3c62619",
+      "sha256": "bd0aeddc1b80d77f33a8cdae083fb438b26eeec6b2943d9d3bc6c114c3c62619"
+    },
+    "app/components/canvas-coach-steps.js": {
+      "upstreamSha256": "4bc12dec7d2171e198ad6fbe09314070054eefc5611a9c5f3b239bf6ac60ef6d",
+      "sha256": "4bc12dec7d2171e198ad6fbe09314070054eefc5611a9c5f3b239bf6ac60ef6d"
+    },
+    "app/components/canvas-draw-palette.js": {
+      "upstreamSha256": "fd52e40ccbb57bc46db4065eb99fd0dc14a4615be6204832cb9d1c4b79cdc35e",
+      "sha256": "fd52e40ccbb57bc46db4065eb99fd0dc14a4615be6204832cb9d1c4b79cdc35e"
+    },
+    "app/components/canvas-generate-single-flight.js": {
+      "upstreamSha256": "0a69ee2622e36b288e1f65c2423dc1df033a6089891c4a39563bb9aa50db3cc3",
+      "sha256": "0a69ee2622e36b288e1f65c2423dc1df033a6089891c4a39563bb9aa50db3cc3"
+    },
+    "app/components/canvas-generation-affordability.js": {
+      "upstreamSha256": "147f50da8df27ca0687bd0f15a67e6e10bc629f52dffdfdbde6e9907339c1f52",
+      "sha256": "147f50da8df27ca0687bd0f15a67e6e10bc629f52dffdfdbde6e9907339c1f52"
+    },
+    "app/components/canvas-generation-reconcile.js": {
+      "upstreamSha256": "8c0c4e3ae2b3e277dfb762ff05b6dce292772973c0e55974bdc7a52e5cc5e9b8",
+      "sha256": "8c0c4e3ae2b3e277dfb762ff05b6dce292772973c0e55974bdc7a52e5cc5e9b8"
+    },
+    "app/components/canvas-next-page-placeholder.js": {
+      "upstreamSha256": "737e0745b3225e193b45566f3f7c283ce582790d3bf0bcb1ec4bf51292f7a58f",
+      "sha256": "737e0745b3225e193b45566f3f7c283ce582790d3bf0bcb1ec4bf51292f7a58f"
+    },
+    "app/components/canvas-paste-node.js": {
+      "upstreamSha256": "4827465667c20a92257b0192da42305be982654fca07996972e3e38bddaf2569",
+      "sha256": "4827465667c20a92257b0192da42305be982654fca07996972e3e38bddaf2569"
+    },
+    "app/components/canvas-save-queue.js": {
+      "upstreamSha256": "4b69eea1ce9f6204b556eb0999d85e9fc69c2773c489fa5d31410bdbbff9970e",
+      "sha256": "4b69eea1ce9f6204b556eb0999d85e9fc69c2773c489fa5d31410bdbbff9970e"
+    },
+    "app/components/canvas-tool-state.js": {
+      "upstreamSha256": "36fcf2a33d6de32e368a9598baa17d9c1c217af2d5b26a6e730db2396030ff6e",
+      "sha256": "36fcf2a33d6de32e368a9598baa17d9c1c217af2d5b26a6e730db2396030ff6e"
+    },
+    "app/components/canvas-tool-tooltips.js": {
+      "upstreamSha256": "b7e33ffc2efb131b8371ece9b7fa6779879681ca846b293eabea929af3287c08",
+      "sha256": "b7e33ffc2efb131b8371ece9b7fa6779879681ca846b293eabea929af3287c08"
+    },
+    "app/components/diffui-app-toast.js": {
+      "upstreamSha256": "1df98d7585c2b993d710b45212e7cd3e1b50ff6baf684cfd57c8c1755dbffe69",
+      "sha256": "1df98d7585c2b993d710b45212e7cd3e1b50ff6baf684cfd57c8c1755dbffe69"
+    },
+    "app/components/diffui-button.js": {
+      "upstreamSha256": "128d93943a823b31c76468299ef70753a2af318d522b20d88d6355625dfc1816",
+      "sha256": "128d93943a823b31c76468299ef70753a2af318d522b20d88d6355625dfc1816"
+    },
+    "app/components/diffui-canvas-comment.js": {
+      "upstreamSha256": "8b3f4f334e458b7c9f77e6f5d19ee1d4f634faba6d654c34f1314a323ea3578d",
+      "sha256": "8b3f4f334e458b7c9f77e6f5d19ee1d4f634faba6d654c34f1314a323ea3578d"
+    },
+    "app/components/diffui-canvas-tool-tooltip.js": {
+      "upstreamSha256": "46f1aaabed7047ec67f601421990923158a96161679ce97f02be216b0807e11b",
+      "sha256": "46f1aaabed7047ec67f601421990923158a96161679ce97f02be216b0807e11b"
+    },
+    "app/components/diffui-canvas-workspace.js": {
+      "upstreamSha256": "fc26b8b63d25e57e343f9f7594d0a640927825414c54aa6c481be2bc79e99295",
+      "sha256": "eff2f9691d304bbd6f45b637a2122e6c51b58bd65a2bddc3c2bf6a6263d3085f",
+      "patches": [
+        "self-containment: the three cursor sprites the element declares on itself",
+        "bb behaviour: the note above the availability rule, which described the global that is gone",
+        "bb behaviour: this copy only runs in bb, so \"Build with bb\" needs no DIFFUI_BB_HOST global"
+      ]
+    },
+    "app/components/diffui-component.js": {
+      "upstreamSha256": "931fa537b0a22a67a927811fa8d1a4f8e23b5e7218c147bb95c790201918225b",
+      "sha256": "931fa537b0a22a67a927811fa8d1a4f8e23b5e7218c147bb95c790201918225b"
+    },
+    "app/components/diffui-inpaint-prompt.js": {
+      "upstreamSha256": "3a5cdeadc9f62327ab12a90b4c74b30ad7720b2f2e1001a6d939cc1d05ffd83c",
+      "sha256": "3a5cdeadc9f62327ab12a90b4c74b30ad7720b2f2e1001a6d939cc1d05ffd83c"
+    },
+    "app/components/diffui-prompt-suggestions.js": {
+      "upstreamSha256": "52f5e9b3d613bf486643a336aba959996d79a9e1b84bac595506376c2e8786c7",
+      "sha256": "52f5e9b3d613bf486643a336aba959996d79a9e1b84bac595506376c2e8786c7"
+    },
+    "app/vendor/yjs.bundle.mjs": {
+      "upstreamSha256": "ea43e31c53d9b9b5866fb2439398563b27ba058ad7cc007325275cfeb86f5f4a",
+      "sha256": "ea43e31c53d9b9b5866fb2439398563b27ba058ad7cc007325275cfeb86f5f4a"
+    },
+    "app/wasm/diffui_canvas.js": {
+      "upstreamSha256": "b049b766da5ef9524999d1a4fac60480784a56be9e5caef93367b587140677f7",
+      "sha256": "b049b766da5ef9524999d1a4fac60480784a56be9e5caef93367b587140677f7"
+    },
+    "embed-bridge.js": {
+      "upstreamSha256": "73f62f40bc5d4f40aae1f259cd95b492287580122a1c4608365b78fb4d190ef0",
+      "sha256": "2e773acdd266291cfee4a477e97594e712a594c8be1691eb7cac064e2a32aac5",
+      "patches": [
+        "self-containment: /app/assets/* resolve to the sprites bundled with this copy",
+        "self-containment: import for the bundled sprite lookup above"
+      ]
+    },
+    "error-reporter.js": {
+      "upstreamSha256": "b5d1ec1768473209563023abeeaff44124be427a03ec9d624581c4146a991d69",
+      "sha256": "b5d1ec1768473209563023abeeaff44124be427a03ec9d624581c4146a991d69"
+    },
+    "image-urls.js": {
+      "upstreamSha256": "3c26b0aa1cb137dd88061f9e75a22a43f5d11f2516d238827e099dfb93314d05",
+      "sha256": "3c26b0aa1cb137dd88061f9e75a22a43f5d11f2516d238827e099dfb93314d05"
+    },
+    "prompt-limits.js": {
+      "upstreamSha256": "22b58695811336f0ea979c4275d77d817f2e7db1d597925d74787f25cb9d19f9",
+      "sha256": "22b58695811336f0ea979c4275d77d817f2e7db1d597925d74787f25cb9d19f9"
+    },
+    "router.js": {
+      "upstreamSha256": "942b3a1570eca47b08829ac46b3875b9e9e8a2d18f6291cac46543c03fe4c577",
+      "sha256": "942b3a1570eca47b08829ac46b3875b9e9e8a2d18f6291cac46543c03fe4c577"
+    },
+    "share-viewer.js": {
+      "upstreamSha256": "28d40dc2151f7809ef2dc30ae7739aca6b78b92907e40aeb487c817a055e00f2",
+      "sha256": "28d40dc2151f7809ef2dc30ae7739aca6b78b92907e40aeb487c817a055e00f2"
+    },
+    "ui-telemetry-queue.js": {
+      "upstreamSha256": "8990a86478e7acf1067c9a9ca93bcaa5e4318c57855587f9ebbd067554041397",
+      "sha256": "8990a86478e7acf1067c9a9ca93bcaa5e4318c57855587f9ebbd067554041397"
+    },
+    "ui-telemetry.js": {
+      "upstreamSha256": "ec41bdec7db97b8260716b8dfac1c2649f8feba74a5248c404ba5297f9614e60",
+      "sha256": "ec41bdec7db97b8260716b8dfac1c2649f8feba74a5248c404ba5297f9614e60"
+    },
+    "wallet.js": {
+      "upstreamSha256": "ee8672b799d1c88fdeeba27e06a3d5e6c0955b152d3d79ce94f6d6dea4af7258",
+      "sha256": "ee8672b799d1c88fdeeba27e06a3d5e6c0955b152d3d79ce94f6d6dea4af7258"
+    },
+    "watch-reconnect.js": {
+      "upstreamSha256": "03b682df3da9f18e27c566ccb8e0643814909f31e308b373a7f318a3bcb3af49",
+      "sha256": "03b682df3da9f18e27c566ccb8e0643814909f31e308b373a7f318a3bcb3af49"
+    }
+  },
+  "assets": {
+    "/app/assets/canvas-cursor-duplicate.png": {
+      "sha256": "2c274940763b42cda242ed9d2929802b8c1a99af88bc06e62856126aa96a228e",
+      "bytes": 3070
+    },
+    "/app/assets/canvas-cursor-pointer.png": {
+      "sha256": "305ba26b121e2fec373d5c6a497c7160374efaf0c09d69a85f863c81d37b3a61",
+      "bytes": 2288
+    },
+    "/app/assets/collab-cursors/1D4C1E.png": {
+      "sha256": "b7136267588befe00c0414aa7d2811e94a00e8e26bface801db7168d02ad0d3e",
+      "bytes": 2631
+    },
+    "/app/assets/collab-cursors/236B42.png": {
+      "sha256": "abbc0b8435958c9f1fe0baff9f6763544e7dc1715e1400a3c21ac7acb706f2dc",
+      "bytes": 2693
+    },
+    "/app/assets/collab-cursors/556C52.png": {
+      "sha256": "869b825c25e1d774fba9a70bcdb28fef4e17dd0730688d4825a196738702b6c1",
+      "bytes": 2706
+    },
+    "/app/assets/collab-cursors/753B00.png": {
+      "sha256": "1802099a74d088f56cb6aab576414770e7ca905d419b657efbd6941caa7c5ac3",
+      "bytes": 2671
+    },
+    "/app/assets/collab-cursors/8F3222.png": {
+      "sha256": "5fc13d39714c159bf92f2d4d0d39fa673c9cddcb344297c8cf348873c99e032e",
+      "bytes": 2641
+    },
+    "/app/assets/collab-cursors/AA5F52.png": {
+      "sha256": "f83cfd2fffb54cf9565040126c640dd2799684e3cf79381a3e4bb64a9d405bb2",
+      "bytes": 2690
+    },
+    "/app/assets/collab-cursors/ACA15E.png": {
+      "sha256": "d1492f3a3f06cb4205007dc82eb72cd68fa0357148bf1f36bf1c9de600671ce8",
+      "bytes": 2663
+    },
+    "/app/assets/collab-cursors/BC9B30.png": {
+      "sha256": "1efc2d89e647deb58460b49bfbb80e3e99440ebeead553fae35fec7ed54bde3f",
+      "bytes": 2657
+    },
+    "/app/assets/collab-cursors/C38B23.png": {
+      "sha256": "5ed01f32705e06aca3a7db13b49b77dd28e84b62f0691c9abb25bedb1b4c2db1",
+      "bytes": 2653
+    },
+    "/app/assets/comment-cursor.png": {
+      "sha256": "79d72249d299f9ee23f39ed8038a616e699bafe3e14470c9b7d52afae772a0f8",
+      "bytes": 2117
+    }
+  }
+}

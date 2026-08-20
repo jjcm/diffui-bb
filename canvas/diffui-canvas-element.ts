@@ -1,26 +1,29 @@
-// Diffui's real canvas, running inside bb.
+// Diffui's real canvas, running inside bb — from the copy in this repository.
 //
 // `<diffui-canvas-workspace>` is a plain custom element with its own shadow DOM
 // — nothing about it is React or Diffui-page specific — so bb mounts the SAME
-// module the Diffui app serves rather than an imitation of it. The module is
-// dynamically imported AT RUNTIME from the configured Diffui origin
-// (`session.baseUrl`, i.e. DIFFUI_API_BASE): this repository carries no copy of
-// Diffui frontend source, no vendored snapshot to drift, no simplified
-// re-implementation, and no iframe. Hit-testing, pan/zoom, the tool rail,
-// double-click, context menus, noodles, option stacks, comments, prompt
-// editing, generation, undo, collab — all of it is the Diffui instance's own
-// code, at whatever version that instance is running. (Diffui serves its
-// frontend modules with bearer-only CORS for exactly this, so the import
-// resolves cross-origin from a bb plugin page.)
+// module the Diffui app runs rather than an imitation of it. That module and
+// its whole import graph live here, under `canvas/diffui/`, mirrored file for
+// file from Diffui's frontend (canvas/README.md). Hit-testing, pan/zoom, the
+// tool rail, double-click, context menus, noodles, option stacks, comments,
+// prompt editing, generation, undo, collab — all of it is Diffui's own code,
+// bundled into the plugin. No iframe, no re-implementation, and no frontend
+// asset fetched from a Diffui origin: the plugin talks to Diffui over its API
+// only (JSON, files, websockets).
 //
-// The element already supports being embedded (Diffui's embed-bridge.js): with
-// `window.DIFFUI_EMBED` set it sends `Authorization: Bearer <api key>` with
-// `credentials: "omit"` to `DIFFUI_API_BASE`, and puts the same key on the
-// `access_token` query parameter of its websockets. That is why the globals are
-// assigned BEFORE the dynamic import: the module reads them while it evaluates.
-// `window.DIFFUI_BB_HOST` is part of the same contract — Diffui's canvas hides
-// "Build with bb" unless the page hosting it declares itself a bb host, so the
-// action stays plugin-only and never appears in the Diffui web app itself.
+// The import below is a static specifier, so `bb plugin build` bundles the
+// canvas into the plugin's app bundle; being an `import()` still defers the
+// module's evaluation to the first mount, which is what lets the embed globals
+// be assigned first.
+//
+// Those globals are Diffui's embed contract (its `embed-bridge.js`), and they
+// are about the API and nothing else: with `window.DIFFUI_EMBED` set the
+// element sends `Authorization: Bearer <api key>` with `credentials: "omit"`
+// to `DIFFUI_API_BASE`, and puts the same key on the `access_token` query
+// parameter of its websockets. `window.DIFFUI_BB_HOST` is not among them —
+// upstream reads it to keep "Build with bb" off diffui.ai, and this copy only
+// ever runs in bb, so it says so directly (see the patch set in
+// scripts/diffui-canvas-bb-patches.mjs).
 
 import { hostThemeName } from "./bb-canvas-theme.js";
 
@@ -31,7 +34,7 @@ export interface DiffuiCanvasElement extends HTMLElement {
 }
 
 export interface DiffuiEmbedSession {
-  /** Diffui origin, e.g. "http://localhost:3040". */
+  /** Diffui origin, e.g. "http://localhost:3040". Used for API calls only. */
   baseUrl: string;
   /** A `dui_…` API key. */
   apiKey: string;
@@ -39,38 +42,23 @@ export interface DiffuiEmbedSession {
 
 interface EmbedWindow extends Window {
   DIFFUI_EMBED?: boolean;
-  DIFFUI_BB_HOST?: boolean;
   DIFFUI_API_BASE?: string;
   DIFFUI_API_KEY?: string;
 }
 
 const ELEMENT_NAME = "diffui-canvas-workspace";
 
-/** The product canvas module, on the Diffui origin that serves it. */
-export const CANVAS_MODULE_PATH = "/app/components/diffui-canvas-workspace.js";
-
-/** The module URL the plugin imports for a given Diffui origin. */
-export function canvasModuleUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}${CANVAS_MODULE_PATH}`;
-}
-
 let loadPromise: Promise<void> | null = null;
 
 /**
- * Puts the embed contract in place and loads the canvas module once per page.
+ * Puts the embed contract in place and evaluates the canvas once per page.
  *
  * Re-entrant: later calls reuse the same promise, and a re-keyed install just
- * updates the globals the element reads on its next request. A custom element
- * can only be defined once per page, so the first origin to load wins — bb
- * configures exactly one Diffui instance, which makes that a non-event.
+ * updates the globals the element reads on its next request.
  */
 export async function loadDiffuiCanvas(session: DiffuiEmbedSession): Promise<void> {
   const view = window as EmbedWindow;
   view.DIFFUI_EMBED = true;
-  // Before the module evaluates, so "Build with bb" is offered in bb and
-  // nowhere else. Diffui's canvas checks this global when deciding whether the
-  // context menus carry the action at all.
-  view.DIFFUI_BB_HOST = true;
   view.DIFFUI_API_BASE = session.baseUrl.replace(/\/+$/, "");
   view.DIFFUI_API_KEY = session.apiKey;
   // The canvas reads the app theme off the document root. Mirroring bb's
@@ -80,11 +68,10 @@ export async function loadDiffuiCanvas(session: DiffuiEmbedSession): Promise<voi
   document.documentElement.dataset.appTheme = hostThemeName();
   if (loadPromise === null) {
     loadPromise = (async () => {
-      // The Diffui product canvas, imported as-is from the configured Diffui
-      // origin. The specifier is a runtime value, so esbuild leaves the import
-      // in place instead of trying to bundle it — the module (and its own
-      // relative import graph) always comes from the server it talks to.
-      await import(/* @vite-ignore */ canvasModuleUrl(session.baseUrl));
+      // Diffui's canvas, from canvas/diffui/. Deferred to here so the globals
+      // above are already set when the module evaluates: it reads them while
+      // it does.
+      await import("./diffui-bb/vendored-canvas.js");
       await customElements.whenDefined(ELEMENT_NAME);
     })().catch((error: unknown) => {
       loadPromise = null;
