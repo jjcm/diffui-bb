@@ -5,23 +5,24 @@ Built against the canonical recipe in jjcm/bb's
 `docs/diffui-plugin-author-notes.md` (see [jjcm/bb#6](https://github.com/jjcm/bb/pull/6)).
 
 This is the plugin's home repository. It used to live in the Diffui monorepo at
-`jjcm/diffui:extensions/diffui-bb`; it no longer does, and it carries **no
-Diffui frontend source**. The canvas bb shows is loaded at runtime from the
-Diffui instance the plugin is configured against (see below).
+`jjcm/diffui:extensions/diffui-bb`; it no longer does. The plugin is
+**self-contained**: it ships Diffui's canvas (`canvas/diffui/`, a file-for-file
+mirror of Diffui's frontend module graph) and talks to a Diffui server over its
+**API only** — JSON, files and websockets.
 
 - **Diffui's canvas, in bb** — the "Diffui" sidebar page (nav panel, plugin
   React, no iframe) opens a canvas at `/plugins/diffui-bb/canvas/<canvasId>`
-  by mounting **Diffui's own `<diffui-canvas-workspace>` element**, dynamically
-  imported at runtime from the configured Diffui origin
-  (`baseUrl` / `DIFFUI_API_BASE`). Not a copy and not a re-implementation: the
-  tool rail and its icons, hit-testing, pan/zoom, double-click, context menus,
-  option stacks, noodles, comments, prompt editing, generation, undo and
-  collab are that element's code, running here — at whatever version your
-  Diffui instance serves. The only thing bb changes is **colour**:
+  by mounting **Diffui's own `<diffui-canvas-workspace>` element**, bundled
+  into the plugin from `canvas/diffui/`. Not a re-implementation: the tool rail
+  and its icons, hit-testing, pan/zoom, double-click, context menus, option
+  stacks, noodles, comments, prompt editing, generation, undo and collab are
+  that element's code, running here. What bb changes is **colour** —
   `canvas/bb-canvas-theme.ts` redefines Diffui's `--canvas-*` tokens (and the
   `--canvas-draw-*` set the 2D context resolves) in terms of bb's host tokens,
-  so the canvas follows bb's light and dark themes. The same canvas opens
-  beside any thread via the "Diffui canvas" panel action.
+  so the canvas follows bb's light and dark themes — and the handful of
+  bb-specific canvas behaviours recorded in
+  `scripts/diffui-canvas-bb-patches.mjs`. The same canvas opens beside any
+  thread via the "Diffui canvas" panel action.
   See [canvas/README.md](./canvas/README.md).
 - **The panel's browse grid** lists the whole Diffui account so you can pick a
   file to work on in bb. Each card's box is the generated cover's own ratio
@@ -43,9 +44,10 @@ Diffui instance the plugin is configured against (see below).
   Canvases / Open in Diffui / New canvas into bb's bar through
   `navPanel.headerContent`. See [BB_SDK_GAPS.md](./BB_SDK_GAPS.md).
 - **Build with bb from the Diffui canvas** — right-click a design on a canvas
-  mounted in bb. The action is plugin-only: this loader sets
-  `window.DIFFUI_BB_HOST = true` before the canvas module loads, and Diffui
-  hides "Build with bb" unless the hosting page declares that. Preferred
+  mounted in bb. The action is plugin-only by construction: this copy of the
+  canvas only ever runs inside bb, so it offers the action unconditionally
+  (diffui.ai's own copy keeps its `DIFFUI_BB_HOST` check and stays unchanged).
+  Preferred
   transport is a direct browser call to this plugin's `POST /build` token
   route (declared CORS origins — needs bb with jjcm/bb#6); until that ships,
   the plugin's outbound relay websocket does the work, and a downed relay
@@ -68,8 +70,9 @@ Diffui instance the plugin is configured against (see below).
 - bb `>= 0.38` with `@get-bb/plugin-sdk >= 0.4.8` (the direct browser build
   route additionally wants the per-route CORS from jjcm/bb#6 / SDK 0.4.9).
 - A Diffui instance to talk to (diffui.ai or self-hosted) and an API key
-  (`dui_…`). The instance must serve its frontend modules with the embed CORS
-  headers — any Diffui newer than the plugin's move to this repository does.
+  (`dui_…`). The instance needs the embed CORS headers on `/api` and `/files`
+  for a bearer-authenticated caller; it does **not** need to serve its frontend
+  to bb, because the canvas ships with the plugin.
 
 ## Install
 
@@ -112,15 +115,15 @@ and the API key:
 - **Server side** (`server.ts`, `lib/diffui-client.ts`): plain HTTPS calls to
   Diffui's `/api` with `Authorization: Bearer <apiKey>`, plus the outbound
   relay websocket (`GET /api/bb/bridge`).
-- **In the panel**: the canvas is Diffui's own module, imported at runtime
-  from `<baseUrl>/app/components/diffui-canvas-workspace.js`
-  (`canvas/diffui-canvas-element.ts`). Before the import, the loader sets the
-  embed globals — `DIFFUI_EMBED`, `DIFFUI_BB_HOST`, `DIFFUI_API_BASE`,
-  `DIFFUI_API_KEY` — so the element authenticates every request with the
-  bearer key (`credentials: "omit"`, never a cookie) and resolves its assets
-  against the Diffui origin. Diffui serves its `/api`, `/files/`, and frontend
-  module routes with bearer-only CORS (no `Allow-Credentials`) for exactly
-  this embedding.
+- **In the panel**: the canvas is Diffui's own module, bundled from
+  `canvas/diffui/` and mounted by `canvas/diffui-canvas-element.ts`. Before it
+  evaluates, the loader sets the embed globals — `DIFFUI_EMBED`,
+  `DIFFUI_API_BASE`, `DIFFUI_API_KEY` — so the element authenticates every
+  request with the bearer key (`credentials: "omit"`, never a cookie) and
+  resolves `/files/…` against the Diffui origin. Diffui serves `/api` and
+  `/files/` with bearer-only CORS (no `Allow-Credentials`) for exactly this
+  embedding. No JS, wasm, CSS or sprite is fetched from Diffui — that is
+  asserted by `npm run verify-build` against the real app bundle.
 
 ## How Build with bb reaches your machine
 
@@ -149,13 +152,24 @@ Threads spawned either way are attributed (`origin: plugin`,
 npm install
 npm run typecheck    # tsc --noEmit
 npm test             # vitest (fake plugin host from @get-bb/plugin-sdk/testing)
-npm run verify-build # mirrors bb plugin build's esbuild contract
+npm run verify-build # mirrors bb plugin build's esbuild contract, and asserts
+                     # the app bundle carries the canvas and imports nothing remote
 bb plugin build      # the real packaging path (needs bb >= 0.38)
 ```
 
-`npm test` is standalone. To additionally run the theme drift checks against a
-Diffui checkout (every `--canvas-*` token and drawn colour the product canvas
-reads must be covered by `canvas/bb-canvas-theme.ts`):
+`npm test` is standalone and offline: the canvas it checks is the one in
+`canvas/diffui/`.
+
+To refresh that copy from Diffui (see
+[canvas/README.md](./canvas/README.md#refreshing-the-copy)):
+
+```
+npm run vendor:canvas -- --repo jjcm/diffui --ref main
+npm run vendor:canvas:check     # has upstream moved?
+```
+
+The theme drift checks read the vendored canvas by default; point them at a
+working tree to see what a re-vendor would bring:
 
 ```
 DIFFUI_REPO=/path/to/jjcm/diffui npm test
