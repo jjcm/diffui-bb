@@ -2207,6 +2207,10 @@ template.innerHTML = `
     .stackAdd svg {
       width: 7px;
       height: 7px;
+      fill: currentColor;
+    }
+    .stackAdd svg rect {
+      fill: currentColor;
     }
     @keyframes diffuiCanvasStackSpin {
       to {
@@ -11361,45 +11365,33 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     await this._buildNodesWithBb(nodes);
   }
 
-  // Sends the selected designs into the user's bb. Preferred transport is the
-  // plugin's direct build route on localhost (token auth + per-route CORS —
-  // needs bb with getbb.app's experimental_cors, jjcm/bb#6); anything short of
-  // a readable success falls back to the server-side bridge relay, and a
-  // downed bridge falls back again to putting the same prompt on the
-  // clipboard that Copy for agent would.
+  // Sends the selected designs into bb as a new thread whose composer is
+  // prefilled with the same prompt Copy for agent puts on the clipboard.
+  // The plugin frontend listens for diffui-canvas:build-with-bb and calls
+  // useBbNavigate().toCompose({ initialPrompt }).
   async _buildNodesWithBb(nodes) {
     const pages = this._agentBuildPagesFromNodes(nodes);
     if (!pages.length) throw new Error("Build with bb unavailable");
     this._setStatus("Sending to bb…");
-    const body = {
-      bundle_name: this._agentBundleNameFromNodes(nodes),
-      pages,
-      project_id: this._projectId,
-      project_title: this._projectFileTitle,
-    };
-    const direct = await this._buildWithBbDirect(body);
-    if (direct) {
-      this._announceBbBuild(direct);
-      return;
-    }
-    let res;
-    try {
-      res = await this._api("/api/bb/build", { method: "POST", body: JSON.stringify(body) });
-    } catch (error) {
-      const fallbackUrl = String(error?.data?.buildUrl || "").trim();
-      if (fallbackUrl && navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(this._agentCopyText(fallbackUrl));
-        const reason = error?.data?.error === "bb_bridge_offline"
-          ? "bb isn't connected"
-          : "bb didn't answer";
-        this._setStatus("Copied prompt for agent");
-        this._showToast(`${reason} — copied build prompt instead`);
-        this._refreshBbBridgeStatus().catch(() => null);
-        return;
-      }
-      throw new Error(error?.data?.message || error.message || "Build with bb failed");
-    }
-    this._announceBbBuild(res);
+    const res = await this._api("/api/agent-build-link", {
+      method: "POST",
+      body: JSON.stringify({
+        bundle_name: this._agentBundleNameFromNodes(nodes),
+        pages,
+      }),
+    });
+    const buildUrl = String(res?.buildUrl || "").trim();
+    if (!buildUrl) throw new Error("Build with bb unavailable");
+    const prompt = this._agentCopyText(buildUrl);
+    this.dispatchEvent(
+      new CustomEvent("diffui-canvas:build-with-bb", {
+        bubbles: true,
+        composed: true,
+        detail: { prompt, buildUrl },
+      }),
+    );
+    this._setStatus("Opening in bb");
+    this._showToast("Opening new thread");
   }
 
   // The direct browser→localhost path: mint the dispatch payload server-side,
@@ -15123,13 +15115,13 @@ function stackPlusIcon() {
   horizontal.setAttribute("y", "3");
   horizontal.setAttribute("width", "7");
   horizontal.setAttribute("height", "1");
-  horizontal.setAttribute("fill", "black");
+  horizontal.setAttribute("fill", "currentColor");
   const vertical = document.createElementNS("http://www.w3.org/2000/svg", "rect");
   vertical.setAttribute("x", "4");
   vertical.setAttribute("width", "7");
   vertical.setAttribute("height", "1");
   vertical.setAttribute("transform", "rotate(90 4 0)");
-  vertical.setAttribute("fill", "black");
+  vertical.setAttribute("fill", "currentColor");
   svg.append(horizontal, vertical);
   return svg;
 }

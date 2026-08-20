@@ -45,6 +45,7 @@ describe("registrations", () => {
       "getCanvas",
       "listCanvases",
       "openCanvas",
+      "renameCanvas",
       "status",
       "watchCanvas",
     ]);
@@ -310,6 +311,28 @@ describe("rpc", () => {
       canvases: Array<Record<string, unknown>>;
     };
     expect(after.canvases[0]).toMatchObject({ title: "Coffee subscription" });
+  });
+
+  test("renameCanvas updates the thread title before Diffui's listing catches up", async () => {
+    stubFetch((url, init) => {
+      if (url === `${BASE}/api/projects` && init.method === "POST") {
+        return { body: { project: { id: "canvas-1" } } };
+      }
+      if (url.startsWith(`${BASE}/api/projects?`)) {
+        return { body: { generations: [{ id: "canvas-1", title: "Untitled", file_type: "canvas", thumbnails: [] }] } };
+      }
+      return null;
+    });
+    await host.harness.behavior.callRpc("createCanvas", {});
+    const renamed = (await host.harness.behavior.callRpc("renameCanvas", {
+      projectId: "canvas-1",
+      title: "Coffee subscription",
+    })) as { ok: boolean; title: string };
+    expect(renamed).toEqual({ ok: true, title: "Coffee subscription" });
+    const listed = (await host.harness.behavior.callRpc("listCanvases")) as {
+      canvases: Array<Record<string, unknown>>;
+    };
+    expect(listed.canvases[0]).toMatchObject({ title: "Coffee subscription" });
   });
 
   test("a bb file Diffui's listing no longer carries keeps its remembered title", async () => {

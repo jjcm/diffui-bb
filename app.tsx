@@ -25,6 +25,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -129,6 +130,69 @@ function useActiveCanvasId(): string {
   return id;
 }
 
+// Filenames the canvas just named itself. The sidebar thread row and the host
+// page title both read this so they update the moment Diffui returns a name,
+// without waiting for the account listing.
+const canvasTitleListeners = new Set<() => void>();
+const canvasTitles = new Map<string, string>();
+function titleLooksUntitled(title: string): boolean {
+  const normalized = title.trim().toLowerCase();
+  return normalized === "" || normalized === "untitled" || normalized === "untitled canvas";
+}
+function setCanvasTitle(id: string, title: string): void {
+  const next = title.trim();
+  if (id === "" || next === "") return;
+  const current = canvasTitles.get(id) ?? "";
+  if (next === current) return;
+  if (titleLooksUntitled(next) && current !== "" && !titleLooksUntitled(current)) return;
+  canvasTitles.set(id, next);
+  for (const listener of canvasTitleListeners) listener();
+}
+function useCanvasTitle(id: string): string {
+  const [title, setTitle] = useState(() => (id === "" ? "" : (canvasTitles.get(id) ?? "")));
+  useEffect(() => {
+    const sync = () => setTitle(id === "" ? "" : (canvasTitles.get(id) ?? ""));
+    sync();
+    canvasTitleListeners.add(sync);
+    return () => {
+      canvasTitleListeners.delete(sync);
+    };
+  }, [id]);
+  return title;
+}
+function useCanvasTitlesVersion(): number {
+  const [version, setVersion] = useState(0);
+  useEffect(() => {
+    const bump = () => setVersion((n) => n + 1);
+    canvasTitleListeners.add(bump);
+    return () => {
+      canvasTitleListeners.delete(bump);
+    };
+  }, []);
+  return version;
+}
+
+const HOST_HEADER_ROW = '[data-testid="app-page-header-content-row"]';
+
+function useHostPageTitle(title: string) {
+  const anchorRef = useRef<HTMLDivElement | null>(null);
+  useLayoutEffect(() => {
+    const row = anchorRef.current?.closest(HOST_HEADER_ROW);
+    if (!(row instanceof HTMLElement)) return;
+    const apply = () => {
+      const titleEl = row.querySelector("p.truncate");
+      if (titleEl instanceof HTMLElement && titleEl.textContent !== title) {
+        titleEl.textContent = title;
+      }
+    };
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(row, { characterData: true, childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [title]);
+  return anchorRef;
+}
+
 // ---------------------------------------------------------------------------
 // Icons. The palette mark is the same lucide "Palette" glyph bb renders for
 // this plugin's sidebar row, inlined so thread rows carry the identical icon.
@@ -182,6 +246,7 @@ function PlusIcon() {
 function DiffuiCanvasSurface({ projectId }: { projectId: string }) {
   ensurePanelStyles();
   const rpcRef = useRpcRef();
+  const navigate = useBbNavigate();
   const hostRef = useRef<HTMLDivElement | null>(null);
   const elementRef = useRef<DiffuiCanvasElement | null>(null);
   const [status, setStatus] = useState("Opening canvas…");
@@ -219,6 +284,39 @@ function DiffuiCanvasSurface({ projectId }: { projectId: string }) {
   }, [projectId, rpcRef]);
 
   useEffect(() => watchHostTheme(() => elementRef.current), []);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (host === null) return;
+    const persistTitle = (title: string) => {
+      const next = title.trim();
+      if (next === "") return;
+      setCanvasTitle(projectId, next);
+      void rpcRef.current.call("renameCanvas", { projectId, title: next }).catch(() => undefined);
+    };
+    const onFileTitle = (event: Event) => {
+      const detail = (event as CustomEvent<{ title?: unknown }>).detail;
+      persistTitle(String(detail?.title ?? ""));
+    };
+    const onFileMetadata = (event: Event) => {
+      const detail = (event as CustomEvent<{ displayName?: unknown }>).detail;
+      persistTitle(String(detail?.displayName ?? ""));
+    };
+    const onBuildWithBb = (event: Event) => {
+      const detail = (event as CustomEvent<{ prompt?: unknown }>).detail;
+      const prompt = String(detail?.prompt ?? "").trim();
+      if (prompt === "") return;
+      navigate.toCompose({ initialPrompt: prompt, focusPrompt: true });
+    };
+    host.addEventListener("diffui-canvas:file-title", onFileTitle);
+    host.addEventListener("diffui-canvas:file-metadata", onFileMetadata);
+    host.addEventListener("diffui-canvas:build-with-bb", onBuildWithBb);
+    return () => {
+      host.removeEventListener("diffui-canvas:file-title", onFileTitle);
+      host.removeEventListener("diffui-canvas:file-metadata", onFileMetadata);
+      host.removeEventListener("diffui-canvas:build-with-bb", onBuildWithBb);
+    };
+  }, [navigate, projectId, rpcRef]);
 
   return (
     <div className="dfbb-canvas-shell">
@@ -437,6 +535,9 @@ function DiffuiPanelHeader({ subPath }: { subPath: string }) {
   const [creating, setCreating] = useState(false);
   const [canvasUrl, setCanvasUrl] = useState("");
   const openCanvasId = canvasIdFromSubPath(subPath);
+  const canvasTitle = useCanvasTitle(openCanvasId);
+  const pageTitle = openCanvasId === "" ? "Diffui" : canvasTitle || "Untitled";
+  const headerAnchorRef = useHostPageTitle(pageTitle);
 
   useEffect(() => {
     if (openCanvasId === "") {
@@ -447,7 +548,9 @@ function DiffuiPanelHeader({ subPath }: { subPath: string }) {
     void rpcRef.current
       .call("getCanvas", { projectId: openCanvasId })
       .then((document) => {
-        if (!cancelled) setCanvasUrl(document.canvasUrl);
+        if (cancelled) return;
+        setCanvasUrl(document.canvasUrl);
+        setCanvasTitle(openCanvasId, document.title);
       })
       .catch(() => undefined);
     return () => {
@@ -467,7 +570,7 @@ function DiffuiPanelHeader({ subPath }: { subPath: string }) {
 
   if (openCanvasId !== "") {
     return (
-      <div className="dfbb-header">
+      <div ref={headerAnchorRef} className="dfbb-header">
         <button
           type="button"
           className="dfbb-header-btn"
@@ -486,7 +589,7 @@ function DiffuiPanelHeader({ subPath }: { subPath: string }) {
   }
 
   return (
-    <div className="dfbb-header">
+    <div ref={headerAnchorRef} className="dfbb-header">
       <button type="button" className="dfbb-header-btn" disabled={creating} onClick={createCanvas}>
         <PlusIcon />
         {creating ? "Creating…" : "New canvas"}
@@ -516,6 +619,7 @@ function DiffuiThreadList({ searchQuery, onNavigate, experimental_Original: Orig
   const connection = useRealtimeConnectionState();
   const [files, setFiles] = useState<CanvasRow[]>([]);
   const activeId = useActiveCanvasId();
+  const titlesVersion = useCanvasTitlesVersion();
 
   const refresh = useCallback(() => {
     void withOneRetry(() => rpcRef.current.call("listCanvases"))
@@ -531,12 +635,22 @@ function DiffuiThreadList({ searchQuery, onNavigate, experimental_Original: Orig
     if (connection === "connected") refresh();
   }, [connection, refresh]);
 
-  useRealtime("canvases", () => refresh());
+  useRealtime("canvases", (payload) => {
+    if (payload !== null && typeof payload === "object") {
+      const projectId = String((payload as { projectId?: unknown }).projectId ?? "");
+      const title = String((payload as { title?: unknown }).title ?? "");
+      if (projectId !== "" && title !== "") setCanvasTitle(projectId, title);
+    }
+    refresh();
+  });
 
   const query = searchQuery.trim().toLowerCase();
   const rows = useMemo(
-    () => files.filter((file) => query === "" || file.title.toLowerCase().includes(query)),
-    [files, query],
+    () =>
+      files
+        .map((file) => ({ ...file, title: canvasTitles.get(file.id) || file.title || "Untitled" }))
+        .filter((file) => query === "" || file.title.toLowerCase().includes(query)),
+    [files, query, titlesVersion],
   );
 
   return (
@@ -559,7 +673,7 @@ function DiffuiThreadList({ searchQuery, onNavigate, experimental_Original: Orig
                   <span className="dfbb-thread-icon">
                     <PaletteIcon />
                   </span>
-                  <span className="dfbb-thread-title">{file.title}</span>
+                  <span className="dfbb-thread-title">{file.title || "Untitled"}</span>
                   <span className="dfbb-thread-when">{timeAgo(file.updatedAt)}</span>
                 </button>
               </li>

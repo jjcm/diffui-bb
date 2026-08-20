@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
-import { BbFileStore, type BbFileStorage } from "./lib/bb-files.js";
+import { BbFileStore, titleLooksUntitled, type BbFileStorage } from "./lib/bb-files.js";
 
 /** Stands in for `bb.storage`: a real SQLite file plus bb's migration helper. */
 function testStorage(): { storage: BbFileStorage; cleanup: () => void } {
@@ -99,5 +99,12 @@ describe("BbFileStore", () => {
   test("blank ids are not files", () => {
     store.track("   ", { source: "created" });
     expect(store.list()).toEqual([]);
+  });
+
+  test("untitled placeholders are distinguished from a real filename", () => {
+    expect(titleLooksUntitled("")).toBe(true);
+    expect(titleLooksUntitled("Untitled")).toBe(true);
+    expect(titleLooksUntitled("untitled canvas")).toBe(true);
+    expect(titleLooksUntitled("Coffee subscription")).toBe(false);
   });
 });

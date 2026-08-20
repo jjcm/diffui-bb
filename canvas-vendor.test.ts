@@ -92,6 +92,21 @@ describe("the vendored canvas", () => {
     expect(workspace).toContain('data-action="build-with-bb"');
   });
 
+  test("Build with bb emits the copy-for-agent prompt instead of spawning via the relay", () => {
+    const workspace = readFileSync(join(vendorRoot, "app/components/diffui-canvas-workspace.js"), "utf8");
+    expect(workspace).toContain('diffui-canvas:build-with-bb');
+    expect(workspace).toContain("this._agentCopyText(buildUrl)");
+    expect(workspace).toContain('/api/agent-build-link');
+  });
+
+  test("stackAdd plus icon uses currentColor so it follows bb chip-text tokens", () => {
+    const workspace = readFileSync(join(vendorRoot, "app/components/diffui-canvas-workspace.js"), "utf8");
+    const fn = workspace.slice(workspace.indexOf("function stackPlusIcon()"), workspace.indexOf("function nextFrame()"));
+    expect(fn).toContain('setAttribute("fill", "currentColor")');
+    expect(fn).not.toContain('setAttribute("fill", "black")');
+    expect(workspace).toContain(".stackAdd svg rect {\n      fill: currentColor;");
+  });
+
   test("never reaches a Diffui origin for frontend code", () => {
     for (const file of vendoredFiles()) {
       const source = readFileSync(join(vendorRoot, file), "utf8");

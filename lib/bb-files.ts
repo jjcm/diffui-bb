@@ -24,6 +24,12 @@ import type BetterSqlite3 from "better-sqlite3";
 /** How a file came to be a bb thread. */
 export type BbFileSource = "created" | "opened";
 
+/** Diffui's placeholder names — a real filename should never lose to these. */
+export function titleLooksUntitled(title: string): boolean {
+  const normalized = title.trim().toLowerCase();
+  return normalized === "" || normalized === "untitled" || normalized === "untitled canvas";
+}
+
 export interface BbFileRow {
   projectId: string;
   /** Last title seen from Diffui — the thread row's name. */

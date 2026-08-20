@@ -153,7 +153,13 @@ export function useBbNavigate() {
     toPluginPanel(_path: string, options?: { subPath?: string }) {
       harnessNavigate(options?.subPath ?? "");
     },
-    toCompose() {},
+    toCompose(options?: { initialPrompt?: string }) {
+      const banner = document.getElementById("harness-banner");
+      if (banner !== null) {
+        banner.textContent = `bb would open compose with: ${options?.initialPrompt ?? ""}`;
+        banner.style.display = "block";
+      }
+    },
     openThreadPanel() {
       return false;
     },

@@ -93,11 +93,14 @@
     },
     "app/components/diffui-canvas-workspace.js": {
       "upstreamSha256": "fc26b8b63d25e57e343f9f7594d0a640927825414c54aa6c481be2bc79e99295",
-      "sha256": "eff2f9691d304bbd6f45b637a2122e6c51b58bd65a2bddc3c2bf6a6263d3085f",
+      "sha256": "039756e53ab4d9ebb118b78c757fdb71d02f969a3e8d318e50a3a53fa5c9d3ca",
       "patches": [
         "self-containment: the three cursor sprites the element declares on itself",
         "bb behaviour: the note above the availability rule, which described the global that is gone",
-        "bb behaviour: this copy only runs in bb, so \"Build with bb\" needs no DIFFUI_BB_HOST global"
+        "bb behaviour: this copy only runs in bb, so \"Build with bb\" needs no DIFFUI_BB_HOST global",
+        "bb behaviour: Build with bb opens a new thread prefilled with the Copy for agent prompt",
+        "bb behaviour: .stackAdd plus icon follows --canvas-chip-text instead of a hardcoded black fill",
+        "bb behaviour: stackPlusIcon paints with currentColor so the plus tracks the chip text token"
       ]
     },
     "app/components/diffui-component.js": {

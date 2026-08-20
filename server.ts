@@ -31,7 +31,7 @@ import {
 import { parseBuildRequest, runBridge, type BridgeBuildRequest, type BridgeBuildResult } from "./lib/bridge.js";
 import { dispatchBuildRequest, type BuildDispatchDeps, type BuildSpawnRecord } from "./lib/build-dispatch.js";
 import { CanvasWatchHub } from "./lib/canvas-watch.js";
-import { BbFileStore } from "./lib/bb-files.js";
+import { BbFileStore, titleLooksUntitled } from "./lib/bb-files.js";
 
 const PLUGIN_VERSION = "0.2.0";
 const DEFAULT_BASE_URL = "https://diffui.ai";
@@ -112,6 +112,13 @@ export const rpcContract = defineRpcContract({
   forgetCanvas: {
     input: z.object({ projectId: z.string() }),
     output: z.object({ ok: z.boolean() }),
+  },
+  // Persist a filename the canvas just named itself (or the user typed) so the
+  // sidebar thread row and the host page title can follow it immediately —
+  // without waiting for Diffui's listing to catch up.
+  renameCanvas: {
+    input: z.object({ projectId: z.string(), title: z.string().max(255) }),
+    output: z.object({ ok: z.boolean(), title: z.string() }),
   },
   // The embed credentials the in-bb canvas mounts with: it loads Diffui's own
   // canvas element and talks to Diffui directly (bearer key, credentials
@@ -271,8 +278,15 @@ export default async function plugin(bb: BbPluginApi) {
       }
       // A canvas names itself after its first designs; that rename is what the
       // thread row follows, so cache it as the row's title from now on.
-      if (canvas.title !== "" && canvas.title !== file.title) store.rename(file.projectId, canvas.title);
-      return canvasRow(canvas, tracked);
+      // Prefer a filename we already stored over Diffui's listing still saying
+      // Untitled — the listing lags the titles API that named the file.
+      if (!titleLooksUntitled(canvas.title) && canvas.title !== file.title) {
+        store.rename(file.projectId, canvas.title);
+      }
+      const title = !titleLooksUntitled(canvas.title)
+        ? canvas.title
+        : file.title.trim() || canvas.title || "Untitled";
+      return { ...canvasRow(canvas, tracked), title };
     });
   }
 
@@ -521,6 +535,14 @@ export default async function plugin(bb: BbPluginApi) {
       watchHub.close(input.projectId);
       bb.realtime.publish("canvases", { projectId: input.projectId });
       return { ok: true };
+    },
+    renameCanvas: async (input) => {
+      const title = input.title.trim();
+      if (title !== "") {
+        bbFiles().rename(input.projectId, title);
+        bb.realtime.publish("canvases", { projectId: input.projectId, title });
+      }
+      return { ok: true, title };
     },
     canvasSession: async () => {
       const current = await settings.get();
