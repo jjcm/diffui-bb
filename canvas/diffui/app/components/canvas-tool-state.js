@@ -8,6 +8,7 @@
 
 export const TOOL_RECT = "rect";
 export const TOOL_FIND = "find";
+export const TOOL_ZOOM = "zoom";
 export const TOOL_POINTER = "pointer";
 export const TOOL_COMMENT = "comment";
 /** Rectangle, restricted to selections that land on an image, that opens the edit dialog. */
@@ -18,6 +19,7 @@ export const TOOL_DUPLICATE = "duplicate";
 export const TOOL_STATUS_LABELS = Object.freeze({
   [TOOL_RECT]: "Rectangle tool",
   [TOOL_FIND]: "Find tool",
+  [TOOL_ZOOM]: "Zoom tool",
   [TOOL_POINTER]: "Pointer tool",
   [TOOL_COMMENT]: "Comment tool",
   [TOOL_EDIT]: "Edit tool",
@@ -35,6 +37,7 @@ export const TOOL_BUTTON_IDS = Object.freeze({
   [TOOL_EDIT]: "toolEdit",
   [TOOL_DUPLICATE]: "toolDuplicate",
   [TOOL_COMMENT]: "toolComment",
+  [TOOL_ZOOM]: "toolZoom",
 });
 
 /**

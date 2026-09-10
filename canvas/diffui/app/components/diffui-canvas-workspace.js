@@ -30,6 +30,7 @@ import {
   TOOL_DUPLICATE,
   TOOL_EDIT,
   TOOL_FIND,
+  TOOL_ZOOM,
   TOOL_POINTER,
   TOOL_RECT,
   TOOL_STATUS_LABELS,
@@ -576,6 +577,12 @@ template.innerHTML = `
     :host([data-panning="true"]) #canvas {
       cursor: grabbing;
     }
+    :host([data-tool="zoom"]) #canvas { cursor: zoom-in; }
+    :host([data-tool="zoom"][data-zoom-out="true"]) #canvas { cursor: zoom-out; }
+    :host([data-tool="zoom"]) :is(#promptLayer, #selectionLayer, #commentLayer),
+    :host([data-tool="zoom"]) :is(#promptLayer, #selectionLayer, #commentLayer) * {
+      pointer-events: none !important;
+    }
     .leftTools {
       position: absolute;
       left: 0;
@@ -997,7 +1004,7 @@ template.innerHTML = `
       pointer-events: none;
     }
     .nodeHeaderActions {
-      display: flex;
+      display: none;
       align-items: center;
       gap: 2px;
       padding-right: 4px;
@@ -1006,6 +1013,7 @@ template.innerHTML = `
       transition: opacity 120ms ease;
     }
     .promptBox[data-selected="true"] .nodeHeaderActions {
+      display: flex;
       opacity: 1;
       pointer-events: auto;
     }
@@ -2777,6 +2785,7 @@ template.innerHTML = `
       background: var(--canvas-fill);
       overflow: hidden;
     }
+    .fileSettingsThumb img[hidden] { display: none; }
     .fileSettingsThumb img {
       width: 100%;
       height: 100%;
@@ -2918,6 +2927,12 @@ template.innerHTML = `
         <button class="toolBtn" id="toolComment" type="button" aria-label="Comment">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M8.66699 11V12H4V11H8.66699ZM13 14.2002C12.9999 14.5297 12.624 14.7173 12.3604 14.5195L9.2666 12.2002C9.13672 12.1028 8.98583 12.0385 8.82715 12.0127L8.66699 12V11C9.09938 11.0001 9.5202 11.1401 9.86621 11.3994L12.0977 13.0732L12.1211 12.8193C12.1709 12.2713 12.4412 11.8517 12.7207 11.5576C12.9948 11.2693 13.3176 11.0578 13.5801 10.9082C13.7886 10.7893 14 10.4932 14 10V5C14 3.89543 13.1046 3 12 3H4C2.89543 3 2 3.89543 2 5V9C2 10.1046 2.89543 11 4 11V12C2.34315 12 1 10.6569 1 9V5C1 3.34315 2.34315 2 4 2H12C13.6569 2 15 3.34315 15 5V10C15 10.7735 14.659 11.4446 14.0752 11.7773L13.9072 11.8779C13.5171 12.1256 13.1583 12.4585 13.1172 12.9092L13 14.2002Z" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="toolBtn" id="toolZoom" type="button" aria-label="Zoom (Z)">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M1.5 14.5L6 10M7 6.5H12M9.5 4V9" stroke="currentColor"/>
+            <path d="M14 6.5C14 4.01472 11.9853 2 9.5 2C7.01472 2 5 4.01472 5 6.5C5 8.98528 7.01472 11 9.5 11V12C6.46243 12 4 9.53757 4 6.5C4 3.46243 6.46243 1 9.5 1C12.5376 1 15 3.46243 15 6.5C15 9.53757 12.5376 12 9.5 12V11C11.9853 11 14 8.98528 14 6.5Z" fill="currentColor"/>
           </svg>
         </button>
       </div>
@@ -3239,6 +3254,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this._stopViewportAnimation();
     this._themeObserver?.disconnect();
     this._themeObserver = null;
     window.removeEventListener("resize", this._resizeBound);
@@ -3447,7 +3463,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     const generating = this._thumbnailRegenerating
       || this._projectThumbnailStatus === "generating"
       || this._projectThumbnailStatus === "scheduled";
-    const url = resolveEmbedAssetUrl(this._projectThumbnailUrl);
+    const url = this._projectThumbnailUrl ? resolveEmbedAssetUrl(this._projectThumbnailUrl) : "";
     let state = "empty";
     if (generating) state = "generating";
     else if (url) state = "ready";
@@ -3455,10 +3471,14 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     if (url) {
       const nextSrc = `${url}${url.includes("?") ? "&" : "?"}v=${this._projectThumbnailCacheKey || 0}`;
       if (img.dataset.loadedSrc !== nextSrc) {
+        img.hidden = true;
         img.dataset.loadedSrc = nextSrc;
+        img.onload = () => {
+          if (img.dataset.loadedSrc === nextSrc) img.hidden = false;
+        };
+        img.onerror = () => { img.hidden = true; };
         img.src = nextSrc;
       }
-      img.hidden = false;
       return;
     }
     if (img.dataset.loadedSrc) {
@@ -3670,6 +3690,8 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     this._keyBound = (event) => this._onKeyDown(event);
     this._keyUpBound = (event) => this._onKeyUp(event);
     this._blurBound = () => {
+      this._finishZoomKey(true);
+      this._cancelZoomGesture({ restoreTool: true });
       this._stopSpacePan();
       this._setShiftHeld(false);
       this._setAltKeyHeld(false);
@@ -3734,7 +3756,11 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     const workspace = this.shadowRoot.getElementById("workspace");
     workspace?.addEventListener("wheel", (event) => this._onWheel(event), { passive: false });
     workspace?.addEventListener("pointermove", (event) => this._onWorkspacePointerMove(event));
-    workspace?.addEventListener("pointerleave", () => this._setHoverTarget("", ""));
+    workspace?.addEventListener("pointerleave", () => {
+      this._lastPointerWorld = null;
+      this._setHoverTarget("", "");
+      if (this._tool === TOOL_ZOOM) this._draw();
+    });
     workspace?.addEventListener("contextmenu", (event) => this._onWorkspaceContextMenu(event));
     workspace?.addEventListener("dragover", (event) => this._onDragOver(event));
     workspace?.addEventListener("drop", (event) => this._onDrop(event));
@@ -3761,6 +3787,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     });
     this.shadowRoot.getElementById("toolRect")?.addEventListener("click", () => this._setTool(TOOL_RECT, "toolbar"));
     this.shadowRoot.getElementById("toolFind")?.addEventListener("click", () => this._setTool(TOOL_FIND, "toolbar"));
+    this.shadowRoot.getElementById("toolZoom")?.addEventListener("click", () => this._setTool(TOOL_ZOOM, "toolbar"));
     this.shadowRoot.getElementById("toolComment")?.addEventListener("click", () => this._setTool(TOOL_COMMENT, "toolbar"));
     this.shadowRoot.getElementById("toolMove")?.addEventListener("click", () => this._setTool(TOOL_POINTER, "toolbar"));
     this.shadowRoot.getElementById("toolEdit")?.addEventListener("click", () => this._setTool(TOOL_EDIT, "toolbar"));
@@ -3888,6 +3915,11 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
         this._toggleFileSettings(false);
         return;
       }
+      if (this._pointer?.mode === "zoom") {
+        this._cancelZoomGesture({ restoreTool: true });
+        this._finishZoomKey(true);
+        return;
+      }
       if (this._inpaint) {
         this._clearInpaintSelection();
         return;
@@ -3902,6 +3934,14 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
       return;
     }
     if (editableTarget) return;
+    if (event.code === "KeyZ" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      event.preventDefault();
+      if (!event.repeat && !this._zoomKey) {
+        this._zoomKey = { previous: this._selectedTool, started: performance.now(), used: false };
+        this._setTool(TOOL_ZOOM, "hotkey");
+      }
+      return;
+    }
     if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey && this._cursorChat?.phase !== "composing") {
       event.preventDefault();
       this._startCursorChat();
@@ -3976,10 +4016,21 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     const plainKey = !event.metaKey && !event.ctrlKey && !event.altKey;
     if (key === "e" && plainKey && this._canEditCollab()) this._setTool(TOOL_EDIT, "hotkey");
     if (key === "d" && plainKey && this._canEditCollab()) this._setTool(TOOL_DUPLICATE, "hotkey");
-    if ((key === "backspace" || key === "delete") && this._canEditCollab()) this._deleteSelected();
+    if ((key === "backspace" || key === "delete") && this._canEditCollab() && event.composedPath().includes(this)) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (this._state.nodes.some((node) => node.selected) || this._state.edges.some((edge) => edge.selected)) {
+        this._deleteSelected();
+      }
+    }
   }
 
   _onKeyUp(event) {
+    if (event.code === "KeyZ" && this._zoomKey) {
+      event.preventDefault();
+      this._finishZoomKey();
+      return;
+    }
     if (event.code === "AltLeft" || event.code === "AltRight") {
       this._setAltKeyHeld(false);
     }
@@ -4009,6 +4060,8 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
    *   a lost edit permission are not choices anyone made.
    */
   _setTool(tool, source = "") {
+    if (tool !== TOOL_ZOOM) this._cancelZoomGesture();
+    if (source === "toolbar" || (source && tool !== TOOL_ZOOM)) this._zoomKey = null;
     if (EDIT_ONLY_TOOLS.includes(tool) && !this._canEditCollab()) return;
     if (tool === TOOL_COMMENT && !this._canCommentCollab()) return;
     if (source) {
@@ -4027,6 +4080,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     if (tool === TOOL_FIND) {
       setTimeout(() => this.shadowRoot.getElementById("findInput")?.focus(), 0);
     }
+    this._setSpacePan(this._spacePan);
     this._setStatus(TOOL_STATUS_LABELS[tool] || TOOL_STATUS_LABELS[TOOL_POINTER]);
   }
 
@@ -4083,13 +4137,15 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
 
   _setSpacePan(active) {
     this._spacePan = active;
-    if (active) this.dataset.spacePan = "true";
+    if (active && this._tool !== TOOL_ZOOM) this.dataset.spacePan = "true";
     else delete this.dataset.spacePan;
+    this._draw();
   }
 
   _setAltKeyHeld(active) {
     if (this._altKeyHeld === active) return;
     this._altKeyHeld = active;
+    this.dataset.zoomOut = String(active || this._shiftHeld);
     this._syncAltDuplicateHoverDataset();
     this._syncToolButtons();
   }
@@ -4139,6 +4195,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   _setShiftHeld(active) {
     if (this._shiftHeld === active) return;
     this._shiftHeld = active;
+    this.dataset.zoomOut = String(active || this._altKeyHeld);
     if (this._pointer?.mode === "resize-node" && this._pointer.currentWorld) {
       const size = this._resizeNodeSizeForWorld(this._pointer, this._pointer.currentWorld);
       this._patchNode(this._pointer.nodeId, size, { quiet: true });
@@ -4188,6 +4245,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     if (sx < 0 || sy < 0 || sx > rect.width || sy > rect.height) return;
     const world = this._screenToWorld(sx, sy);
     this._lastPointerWorld = world;
+    if (this._tool === TOOL_ZOOM && this._spacePan) this._draw();
     if (this._cursorChat?.phase === "composing") {
       this._cursorChat.worldX = world.x;
       this._cursorChat.worldY = world.y;
@@ -4233,6 +4291,10 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   }
 
   _onWorkspaceContextMenu(event) {
+    if (this._tool === TOOL_ZOOM && event.composedPath().some((el) => el.id === "canvas")) {
+      event.preventDefault();
+      return;
+    }
     this._closeExpandedComments();
     const canvas = this.shadowRoot.getElementById("canvas");
     const rect = canvas?.getBoundingClientRect();
@@ -4597,6 +4659,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   _onWheel(event) {
     const zoomModifier = event.ctrlKey || event.metaKey;
     if (!zoomModifier && this._isFocusedEditableEventTarget(event)) return;
+    this._stopViewportAnimation();
     const rect = this.shadowRoot.getElementById("canvas").getBoundingClientRect();
     const sx = event.clientX - rect.left;
     const sy = event.clientY - rect.top;
@@ -4630,12 +4693,150 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   _setViewportScaleAnchoredAt(sx, sy, rawScale) {
     const nextScale = clampNumber(rawScale, MIN_VIEWPORT_SCALE, MAX_VIEWPORT_SCALE);
     if (nextScale === this._state.viewport.scale) return;
-    this._markZooming();
     const before = this._screenToWorld(sx, sy);
-    this._state.viewport.scale = nextScale;
-    this._state.viewport.x = sx - before.x * nextScale;
-    this._state.viewport.y = sy - before.y * nextScale;
-    this._commitViewport();
+    this._animateViewport({
+      scale: nextScale,
+      x: sx - before.x * nextScale,
+      y: sy - before.y * nextScale,
+    }, 240);
+  }
+
+  _finishZoomKey(cancel = false) {
+    const key = this._zoomKey;
+    if (!key) return;
+    this._zoomKey = null;
+    const restore = cancel || key.used || performance.now() - key.started >= 200;
+    if (restore && this._tool === TOOL_ZOOM) {
+      if (this._pointer?.mode === "zoom" && !cancel) this._zoomRestoreTool = key.previous;
+      else this._setTool(key.previous);
+    }
+  }
+
+  _zoomImageAt(world) {
+    if (!world) return null;
+    const node = [...this._state.nodes].reverse().find((node) => pointInNode(world.x, world.y, node));
+    return node && this._activeImageForNode(node) ? node : null;
+  }
+
+  _startZoomGesture(event, world) {
+    event.preventDefault();
+    if (this._zoomKey) this._zoomKey.used = true;
+    this._closeNodeContextMenu();
+    this._closeEdgeFacetMenu();
+    this._stopViewportAnimation();
+    const canvas = this.shadowRoot.getElementById("canvas");
+    canvas.setPointerCapture(event.pointerId);
+    this._pointer = {
+      mode: "zoom", start: world, current: world, pointerId: event.pointerId,
+      out: event.button === 2 || event.altKey || event.shiftKey,
+      focus: event.button === 0 && this._spacePan ? this._zoomImageAt(world) : null,
+      space: this._spacePan,
+    };
+  }
+
+  _cancelZoomGesture({ restoreTool = false } = {}) {
+    const previous = this._zoomRestoreTool;
+    if (this._pointer?.mode === "zoom") {
+      const canvas = this.shadowRoot.getElementById("canvas");
+      if (canvas?.hasPointerCapture(this._pointer.pointerId)) canvas.releasePointerCapture(this._pointer.pointerId);
+      this._pointer = null;
+      this._draw();
+    }
+    this._zoomRestoreTool = null;
+    if (restoreTool && previous) this._setTool(previous);
+  }
+
+  _finishZoomGesture(event) {
+    const gesture = this._pointer;
+    const end = this._eventWorld(event);
+    const restore = this._zoomRestoreTool;
+    this._cancelZoomGesture();
+    if (event.type !== "pointercancel") {
+      const width = Math.abs(end.x - gesture.start.x);
+      const height = Math.abs(end.y - gesture.start.y);
+      if (gesture.out) {
+        const point = this._worldToScreen(gesture.start.x, gesture.start.y);
+        this._setViewportScaleAnchoredAt(point.x, point.y, this._state.viewport.scale / 2);
+      } else if (gesture.space) {
+        if (gesture.focus) this._fitZoomRect(nodeRect(gesture.focus));
+      } else if (width * this._state.viewport.scale >= 5 && height * this._state.viewport.scale >= 5) {
+        this._fitZoomRect({ x: Math.min(end.x, gesture.start.x), y: Math.min(end.y, gesture.start.y), width, height });
+      } else {
+        const point = this._worldToScreen(gesture.start.x, gesture.start.y);
+        this._setViewportScaleAnchoredAt(point.x, point.y, this._state.viewport.scale * 2);
+      }
+    }
+    if (restore) this._setTool(restore);
+  }
+
+  _zoomFitForRect(rect) {
+    const bounds = this.shadowRoot.getElementById("canvas").getBoundingClientRect();
+    const scale = clampNumber(Math.min(
+      Math.max(1, bounds.width - 96) / Math.max(1, rect.width),
+      Math.max(1, bounds.height - 96) / Math.max(1, rect.height),
+    ), MIN_VIEWPORT_SCALE, MAX_VIEWPORT_SCALE);
+    const viewport = this._viewportCenteredOnWorldRect(rect, bounds.width, bounds.height, scale);
+    return {
+      viewport,
+      // Preview the entire destination view, including padding and the extra
+      // space required by the canvas aspect ratio and zoom limits.
+      visibleRect: {
+        x: -viewport.x / scale,
+        y: -viewport.y / scale,
+        width: bounds.width / scale,
+        height: bounds.height / scale,
+      },
+    };
+  }
+
+  _fitZoomRect(rect) {
+    this._animateViewport(this._zoomFitForRect(rect).viewport, 240);
+  }
+
+  _drawZoomOverlay(ctx) {
+    if (this._tool !== TOOL_ZOOM) return;
+    const gesture = this._pointer?.mode === "zoom" ? this._pointer : null;
+    let rect;
+    if (gesture && !gesture.out && !gesture.space) {
+      rect = { x: Math.min(gesture.start.x, gesture.current.x), y: Math.min(gesture.start.y, gesture.current.y),
+        width: Math.abs(gesture.current.x - gesture.start.x), height: Math.abs(gesture.current.y - gesture.start.y) };
+    } else if (this._spacePan) {
+      const node = this._zoomImageAt(this._lastPointerWorld);
+      if (node) rect = this._zoomFitForRect(nodeRect(node)).visibleRect;
+    }
+    if (!rect) return;
+    const point = this._worldToScreen(rect.x, rect.y);
+    const scale = this._state.viewport.scale;
+    ctx.save();
+    ctx.fillStyle = this._palette.portPreviewFill;
+    ctx.strokeStyle = this._palette.portPreviewRim;
+    ctx.lineWidth = 2;
+    ctx.fillRect(point.x, point.y, rect.width * scale, rect.height * scale);
+    if (this._spacePan) this._clipZoomOutlineBehindHeaders(ctx);
+    ctx.strokeRect(point.x, point.y, rect.width * scale, rect.height * scale);
+    ctx.restore();
+  }
+
+  _clipZoomOutlineBehindHeaders(ctx) {
+    const canvas = this.shadowRoot.getElementById("canvas");
+    const bounds = canvas.getBoundingClientRect();
+    const range = this.ownerDocument.createRange();
+    for (const title of this.shadowRoot.querySelectorAll('.promptBox[data-has-image="true"] .nodeTitle')) {
+      if (!title.textContent.trim()) continue;
+      const box = title.getBoundingClientRect();
+      if (!box.width || !box.height) continue;
+      range.selectNodeContents(title);
+      const text = range.getBoundingClientRect();
+      const left = Math.max(box.left, text.left);
+      const right = Math.min(box.right, text.right);
+      if (right <= left || !text.height) continue;
+      // Clip only the outline: the grid, image, and translucent selection fill
+      // remain intact. DOM text bounds track header layout at every zoom level.
+      ctx.beginPath();
+      ctx.rect(0, 0, bounds.width, bounds.height);
+      ctx.rect(left - bounds.left - 5, text.top - bounds.top - 2, right - left + 10, text.height + 4);
+      ctx.clip("evenodd");
+    }
   }
 
   _resetCanvasZoom100() {
@@ -4647,6 +4848,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   }
 
   _onPointerDown(event) {
+    this._stopViewportAnimation();
     if (
       this._nodeRenameNodeId
       && !event.composedPath().some((target) => target instanceof HTMLInputElement && target.classList.contains("nodeTitleInput"))
@@ -4659,6 +4861,10 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     // for the duration of the drag without re-reading layout each pointermove.
     this._refreshCanvasRect();
     const world = this._eventWorld(event);
+    if (this._tool === TOOL_ZOOM && (event.button === 0 || event.button === 2)) {
+      this._startZoomGesture(event, world);
+      return;
+    }
     if (event.button === 1 || (event.button === 0 && this._spacePan)) {
       this._startPan(event, world, event.button === 1 ? "middle" : "space");
       return;
@@ -4774,9 +4980,18 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   }
 
   _onPointerMove(event) {
+    if (this._tool === TOOL_ZOOM) {
+      this.dataset.zoomOut = String(event.altKey || event.shiftKey);
+      if (this._pointer?.mode === "zoom") {
+        this._pointer.current = this._eventWorld(event);
+        this._draw();
+        return;
+      }
+    }
     this._syncAltKeyFromPointerEvent(event);
     const world = this._eventWorld(event);
     this._lastPointerWorld = world;
+    if (this._tool === TOOL_ZOOM && this._spacePan) this._draw();
     if (this._cursorChat?.phase === "composing") {
       this._cursorChat.worldX = world.x;
       this._cursorChat.worldY = world.y;
@@ -5116,6 +5331,10 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   }
 
   _onPointerUp(event) {
+    if (this._pointer?.mode === "zoom") {
+      this._finishZoomGesture(event);
+      return;
+    }
     const world = this._eventWorld(event);
     if (this._dragPort) {
       this._updatePortDrag(world);
@@ -5275,6 +5494,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
   }
 
   _startPan(event, world, panSource) {
+    this._stopViewportAnimation();
     event.preventDefault();
     this._refreshCanvasRect();
     this._capturePointer(event);
@@ -6793,6 +7013,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
 
   _deleteSelected() {
     if (!this._canEditCollab()) return;
+    this.focus({ preventScroll: true });
     this._engine?.delete_selected();
     this._syncStateFromEngine();
     this._commitCollabState();
@@ -7287,6 +7508,7 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     this._drawRemoteCollabPortSessions(ctx);
     this._cullRect = this._visibleWorldRectWithMargin(0.25);
     this._state.nodes.forEach((node) => this._drawNode(ctx, node));
+    this._drawZoomOverlay(ctx);
     if (this._dragPort) this._drawPortDrag(ctx);
     if (this._coachPortDemo) this._drawCanvasCoachPortDemo(ctx);
     this._syncSelectionOverlay();
@@ -8702,9 +8924,13 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
       return;
     }
     if (this._isPromptBoxInteractiveTarget(event.target)) return;
+    this._stopViewportAnimation();
     const textarea = event.currentTarget.querySelector("textarea");
     const node = this._state.nodes.find((item) => item.id === nodeId);
     if (!node) return;
+    // Selection must take keyboard focus away from the previous editor. The
+    // pointer tool prevents the browser's default focus change below.
+    this.focus({ preventScroll: true });
     if (this._tool !== TOOL_POINTER) {
       const hasImage = !!this._activeImageForNode(node);
       // Edit may also start on a node with no image of its own: the drag can end
@@ -12231,8 +12457,18 @@ export class DiffuiCanvasWorkspace extends HTMLElement {
     return this._viewportCenteredOnWorldRect(rect, width, height, this._fitScaleForWorldRect(rect, width, height, margin));
   }
 
-  _animateViewport(target, durationMs, onComplete = null) {
+  _stopViewportAnimation() {
     window.cancelAnimationFrame(this._viewportAnimation);
+    this._viewportAnimation = 0;
+  }
+
+  _animateViewport(target, durationMs, onComplete = null) {
+    this._stopViewportAnimation();
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches || durationMs <= 0) {
+      this._applyViewport(target, { save: true });
+      onComplete?.();
+      return;
+    }
     const from = { ...this._state.viewport };
     if (target.scale !== from.scale) this._markZooming(durationMs + 80);
     const start = performance.now();
