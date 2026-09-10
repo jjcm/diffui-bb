@@ -68,12 +68,14 @@
       "sha256": "4b69eea1ce9f6204b556eb0999d85e9fc69c2773c489fa5d31410bdbbff9970e"
     },
     "app/components/canvas-tool-state.js": {
-      "upstreamSha256": "36fcf2a33d6de32e368a9598baa17d9c1c217af2d5b26a6e730db2396030ff6e",
-      "sha256": "36fcf2a33d6de32e368a9598baa17d9c1c217af2d5b26a6e730db2396030ff6e"
+      "upstreamSha256": "a5ae87bcae6265ad6677f7e4cfd88aa2a9532039502c2d950eff4fbda34126f3",
+      "sha256": "a5ae87bcae6265ad6677f7e4cfd88aa2a9532039502c2d950eff4fbda34126f3",
+      "localUpdate": "Canvas zoom, thumbnail, keyboard deletion and header fixes from jjcm/diffui; September 10, 2026"
     },
     "app/components/canvas-tool-tooltips.js": {
-      "upstreamSha256": "b7e33ffc2efb131b8371ece9b7fa6779879681ca846b293eabea929af3287c08",
-      "sha256": "b7e33ffc2efb131b8371ece9b7fa6779879681ca846b293eabea929af3287c08"
+      "upstreamSha256": "0b386c62f1594f1405267820bd45fdf190b30fc980117cea080536d9fac81109",
+      "sha256": "0b386c62f1594f1405267820bd45fdf190b30fc980117cea080536d9fac81109",
+      "localUpdate": "Canvas zoom, thumbnail, keyboard deletion and header fixes from jjcm/diffui; September 10, 2026"
     },
     "app/components/diffui-app-toast.js": {
       "upstreamSha256": "1df98d7585c2b993d710b45212e7cd3e1b50ff6baf684cfd57c8c1755dbffe69",
@@ -92,8 +94,8 @@
       "sha256": "46f1aaabed7047ec67f601421990923158a96161679ce97f02be216b0807e11b"
     },
     "app/components/diffui-canvas-workspace.js": {
-      "upstreamSha256": "fc26b8b63d25e57e343f9f7594d0a640927825414c54aa6c481be2bc79e99295",
-      "sha256": "039756e53ab4d9ebb118b78c757fdb71d02f969a3e8d318e50a3a53fa5c9d3ca",
+      "upstreamSha256": "d3e7790f3caf057d9b415adf235958d86f0db707163cf5cc5f4ba3b5dfc66663",
+      "sha256": "446b7f5cd491d58e5623b3fc7eb970f5cd7edb6ed044e62ba6480cdf33bea6bd",
       "patches": [
         "self-containment: the three cursor sprites the element declares on itself",
         "bb behaviour: the note above the availability rule, which described the global that is gone",
@@ -101,7 +103,8 @@
         "bb behaviour: Build with bb opens a new thread prefilled with the Copy for agent prompt",
         "bb behaviour: .stackAdd plus icon follows --canvas-chip-text instead of a hardcoded black fill",
         "bb behaviour: stackPlusIcon paints with currentColor so the plus tracks the chip text token"
-      ]
+      ],
+      "localUpdate": "Canvas zoom, thumbnail, keyboard deletion and header fixes from jjcm/diffui; September 10, 2026"
     },
     "app/components/diffui-component.js": {
       "upstreamSha256": "931fa537b0a22a67a927811fa8d1a4f8e23b5e7218c147bb95c790201918225b",

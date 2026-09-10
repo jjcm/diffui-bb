@@ -19,6 +19,7 @@ export const CANVAS_TOOL_TOOLTIPS = Object.freeze({
   toolEdit: Object.freeze({ name: "Edit", hotkey: "E" }),
   toolDuplicate: Object.freeze({ name: "Duplicate", hotkey: "D" }),
   toolComment: Object.freeze({ name: "Comment", hotkey: "C" }),
+  toolZoom: Object.freeze({ name: "Zoom", hotkey: "Z" }),
 });
 
 export class ToolTooltipScheduler {
