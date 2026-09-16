@@ -609,7 +609,7 @@ interface ThreadListProps {
   isCompactViewport: boolean;
   onNavigate: () => void;
   searchQuery: string;
-  experimental_Original: ComponentType;
+  experimental_Original?: ComponentType;
 }
 
 function DiffuiThreadList({ searchQuery, onNavigate, experimental_Original: Original }: ThreadListProps) {
@@ -682,7 +682,7 @@ function DiffuiThreadList({ searchQuery, onNavigate, experimental_Original: Orig
         </div>
       ) : null}
       <div className="dfbb-threads-rest">
-        <Original />
+        {Original ? <Original /> : null}
       </div>
     </div>
   );

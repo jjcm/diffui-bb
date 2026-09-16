@@ -648,9 +648,11 @@ export default async function plugin(bb: BbPluginApi) {
       "diffui_generate_options keeps every image node 1:1 with a single prompt: never concatenate multiple screens " +
       "into one prompt — call the tool once per screen, always with the same project_id so related designs stay in " +
       "one named project. Pass brand_id when the user has a brand.",
-    experimental_statusLabels: {
-      pending: "Rendering Diffui options…",
-      completed: "Rendered Diffui options",
+    presentation: {
+      label: {
+        pending: "Rendering Diffui options…",
+        completed: "Rendered Diffui options",
+      },
     },
     parameters: z.object({
       project_id: z.string().describe("Canvas project id from diffui_create_canvas."),
