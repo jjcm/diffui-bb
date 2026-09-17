@@ -67,8 +67,7 @@ mirror of Diffui's frontend module graph) and talks to a Diffui server over its
 
 ## Requirements
 
-- bb `>= 0.38` with `@get-bb/plugin-sdk >= 0.4.8` (the direct browser build
-  route additionally wants the per-route CORS from jjcm/bb#6 / SDK 0.4.9).
+- bb `>= 0.38` with `@get-bb/plugin-sdk >= 0.4.16`.
 - A Diffui instance to talk to (diffui.ai or self-hosted) and an API key
   (`dui_…`). The instance needs the embed CORS headers on `/api` and `/files`
   for a bearer-authenticated caller; it does **not** need to serve its frontend
@@ -76,12 +75,10 @@ mirror of Diffui's frontend module graph) and talks to a Diffui server over its
 
 ## Install
 
-From this repository's git URL (the plugin is the repository root; its
-`.bb/plugins.json` names it `diffui-bb`):
+From this repository's git URL (the plugin is the repository root):
 
 ```
 bb plugin install https://github.com/jjcm/diffui-bb
-bb plugin install git:https://github.com/jjcm/diffui-bb --plugin diffui-bb
 ```
 
 or from a local checkout while developing:
